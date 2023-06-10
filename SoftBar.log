@@ -1,0 +1,16 @@
+Abaqus JOB SoftBar
+Abaqus 6.14-3
+Abaqus License Manager checked out the following licenses:
+Abaqus/Foundation checked out 3 tokens from Flexnet server abaqus-prd-lics1.
+<113 out of 132 licenses remain available>.
+Begin Analysis Input File Processor
+6/7/2023 11:09:40 AM
+Run pre.exe
+6/7/2023 11:09:41 AM
+End Analysis Input File Processor
+Begin Abaqus/Standard Analysis
+6/7/2023 11:09:41 AM
+Run standard.exe
+6/7/2023 11:09:42 AM
+End Abaqus/Standard Analysis
+Abaqus JOB SoftBar COMPLETED
