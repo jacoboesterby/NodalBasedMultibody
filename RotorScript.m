@@ -53,18 +53,20 @@ xbar(3:3:end) = Nodes(:,4); %z-positions
 
 B = eye(size(M));
 %Find node coinciding with COG
-RCnodes = [Nodes(Nodes(:,4)==-0.5&Nodes(:,3)==0&Nodes(:,2)==-0.1,1);Nodes(Nodes(:,4)==0.5&Nodes(:,3)==0&Nodes(:,2)==0,1);Nodes(Nodes(:,4)==-0.5&Nodes(:,3)==0&Nodes(:,2)==0.1,1)];
+RCnodes = [Nodes(Nodes(:,4)==-0.5&Nodes(:,3)==0&Nodes(:,2)==-0.1,1);Nodes(Nodes(:,4)==0.5&Nodes(:,3)==0&Nodes(:,2)==0,1);Nodes(Nodes(:,4)==0&Nodes(:,3)==0&Nodes(:,2)==0,1)];
 RCdofs = node2dof(RCnodes);
-RCdofs = RCdofs([1,2,3,4,6,8]);
+RCdofs = RCdofs([1,2,5,7,8,9]);
 alldofs = node2dof(Nodes(:,1));
 B = B(:,setdiff(alldofs,RCdofs));
 
 
 %Newmark integration scheme
-h     = 1e-4; 
+tend = 2.0;
+nstep = 2000;
+h     =tend/(nstep+1);% 1e-4;
 gamma = 1/2;
 beta  = 1/4;
-nstep = 10000;
+
 
 %Allocate time history deformation matrix
 cdd = zeros(size(K,1),nstep);
@@ -77,18 +79,18 @@ cf   = zeros(size(K,1),nstep);
 r0           = [0,0,0].';
 % p0           = [cos(0),0,0,sin(0)].'; %Euler parameters
 phi0         = [0,0,0].';
-omega_bar0   = [0,0,0].';
+omega_bar0   = [0,0,10].';
 %Convert angulat velocity to bryant angle derivatives
-phi_dot0     = omega2phi_dot(phi0)*omega_bar0;   
+phi_dot0     = omega2phi_dot(phi0)*omega_bar0;
 rd0          = [0,0,0].'; %No initial velocity
 cf0          = zeros(size(K,1),1); %No initial deformation
-cf_dot0      = zeros(size(K,1),1); %No initial deformation velocity    
+cf_dot0      = zeros(size(K,1),1); %No initial deformation velocity
 c(:,1)       = [r0;phi0;B.'*cf0];
 cd(:,1) = [rd0;phi_dot0;B.'*cf_dot0];
 
 %Proportional damping
 C = (1e-4.*M  + 1e-4.*K).*0;
- 
+
 
 % Apply gravitational pull
 Fgrav = zeros(size(K,1),1);
@@ -99,7 +101,7 @@ Fgrav = zeros(size(K,1),1);
 forceFile = readmatrix('SoftBar_LOAD1.txt');%(This containes nodal indices and their respective force)
 Fgrav(forceFile(:,1)) = forceFile(:,2);
 F = zeros(length(xbar),1);
-F = Fgrav.*100;
+F = Fgrav;
 %Add initial force
 % F(50*3-1) = -100;
 [Mhat,Chat,Khat,Qv,Qa] = buildEOM(M,C,K,phi0,phi_dot0,xbar,cf0,cf_dot0,F,B);
@@ -126,48 +128,68 @@ t = zeros(nstep+1,1);
 
 disp('Starting integration ...')
 prog = 0;
+errTol = 1e-5;
+eps = 1e-6;
 for i=1:nstep
     t(i+1) = i*h;
     
     % Predictor step
     cs = c(:,i)+h*cd(:,i)+(1/2-beta)*h^2.*cdd(:,i);
     cds = cd(:,i)+(1-gamma)*h.*cdd(:,i);
+    %Set next iterations acceleration to zero
+    cdd(:,i+1) = 0;
+    
     %Extract flexible parts
     cfsbar = B*cs(7:end);
     
-    %Calculate transformation matrix from prediction
-    [A,G] = TransformMat(cs(4:6));
-    
-    F = Fgrav.*100; 
-    
-    %Find global position of nodes 65 and 35
-    r1 = cs(1:3) + A*xbar(nodeEnd1*3-2:nodeEnd1*3) + A*cfsbar(nodeEnd1*3-2:nodeEnd1*3);
-    r2 = cs(1:3) + A*xbar(nodeEnd2*3-2:nodeEnd2*3) + A*cfsbar(nodeEnd2*3-2:nodeEnd2*3);
-    l1 = r1-rsp1;
-    l2 = r2-rsp2;
-    u1 = l1./sqrt(l1.'*l1);
-    u2 = l2./sqrt(l2.'*l2);
-    F(nodeEnd1*3-2:nodeEnd1*3) = F(nodeEnd1*3-2:nodeEnd1*3) - k1.*l1;%k1*norm(l1,2)*u1;
-    F(nodeEnd2*3-2:nodeEnd2*3) = F(nodeEnd2*3-2:nodeEnd2*3) - k2.*l2;%*norm(l2,2)*u2;
-    
-%     F(nodeMid*3-1) = F(nodeMid*3-1) - 100000;
-    
+    %Calculate forces of step i+1
+    F = Fgrav;
+    F(nodeEnd1*3-2:nodeEnd1*3) = F(nodeEnd1*3-2:nodeEnd1*3) + Spring(rsp1,cs(1:3),cs(4:6),xbar(nodeEnd1*3-2:nodeEnd1*3),cfsbar(nodeEnd1*3-2:nodeEnd1*3),k1);
+    F(nodeEnd2*3-2:nodeEnd2*3) = F(nodeEnd2*3-2:nodeEnd2*3) + Spring(rsp2,cs(1:3),cs(4:6),xbar(nodeEnd2*3-2:nodeEnd2*3),cfsbar(nodeEnd2*3-2:nodeEnd2*3),k2);
+    %Build system of equations
     [Mhat,Chat,Khat,Qv,Qa] = buildEOM(M,C,K,cs(4:6),cds(4:6),xbar,B*cs(7:end),B*cds(7:end),F,B);
     
-    %Apply moment to body
-%     Qa(6) = Qa(6) + 1000;
-
     
-    S = Mhat + h*gamma*Chat + h^2*beta*Khat;
+    %Calculate residual from predictor
+    res = Mhat*cdd(:,i+1)+Chat*cds+Khat*cs-(Qa+Qv);
+    f = Chat*cds+Khat*cs-(Qa+Qv);
+    err = max(abs(res));
     
-    %Calculate global position of node
+    %Newton iterations
+    k = 1;
+    while (norm(res)>eps*norm(f))||(max(abs(err))>errTol)   
+        S = Mhat + h*gamma*Chat + h^2*beta*Khat;
+        %Calculate correction
+        dcdd = S\(-res);
+        
+        %Update step
+        cs = cs + beta*h^2*dcdd;
+        cds = cds + gamma*h*dcdd;
+        cdd(:,i+1) = cdd(:,i+1) + dcdd;
+        
+        %Extract flexible parts
+        cfsbar = B*cs(7:end);
+        
+        %Calculate forces of step i+1
+        F = Fgrav;
+        F(nodeEnd1*3-2:nodeEnd1*3) = F(nodeEnd1*3-2:nodeEnd1*3) + Spring(rsp1,cs(1:3),cs(4:6),xbar(nodeEnd1*3-2:nodeEnd1*3),cfsbar(nodeEnd1*3-2:nodeEnd1*3),k1);
+        F(nodeEnd2*3-2:nodeEnd2*3) = F(nodeEnd2*3-2:nodeEnd2*3) + Spring(rsp2,cs(1:3),cs(4:6),xbar(nodeEnd2*3-2:nodeEnd2*3),cfsbar(nodeEnd2*3-2:nodeEnd2*3),k2);
+        %Build system of equations
+        [Mhat,Chat,Khat,Qv,Qa] = buildEOM(M,C,K,cs(4:6),cds(4:6),xbar,B*cs(7:end),B*cds(7:end),F,B);
+        
+        %Calculate residual vector
+        res = Mhat*cdd(:,i+1) + Chat*cds + Khat*cs - (Qa+Qv);
+        f = Chat*cds + Khat*cs - (Qa+Qv);
+        err = max(abs(res));
+        k = k+1;
+    end
     
-    RHS = Qa+Qv;
-    cdd(:,i+1) = S\(RHS-Chat*cds-Khat*cs);
-    c(:,i+1) = cs + h^2*beta.*cdd(:,i+1);
-    cd(:,i+1) = cds + h*gamma.*cdd(:,i+1);
+    c(:,i+1)  = cs; 
+    cd(:,i+1) = cds;
+ 
     [Amat,Gmat] = TransformMat(c(4:6,i+1));
     omega_hist(:,i+1) = Gmat*cd(4:6,i+1);
+    
     
     %Write progess
     if (i/nstep*100-10>=prog)

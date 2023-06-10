@@ -1,6 +1,6 @@
 function writeTimeSeriesFull(Nodes,xbar,c,t,B)
 %Recreate nodal positions
-step = 5;
+step = 2;
 x = zeros(size(Nodes,1),length(t(1:step:end)));
 y = zeros(size(Nodes,1),length(t(1:step:end)));
 z = zeros(size(Nodes,1),length(t(1:step:end)));
