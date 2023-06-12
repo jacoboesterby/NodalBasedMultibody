@@ -17,11 +17,6 @@ function [Mhat,Chat,Khat,Qv,Qa] = buildEOMModal(MR,CR,KR,Psi,phi,phi_dot,xbarR,e
 % cfbar = 
 
 %%
-% [Psi,Lambda] = eigs(K,M,10,'smallestabs');
-% Psi = Psi(:,7:end);
-% eta = zeros(size(Psi,2),1)
-% eta_dot = zeros(size(Psi,2),1)
-
 %Construct cfbar
 cfbarR = Psi*eta; 
 cfbarR_dot = Psi*eta_dot;
@@ -36,8 +31,8 @@ H = [eye(3,3),             zeros(3,3),            zeros(3, size(Psi,2));
     zeros(3,3),            eye(3,3),              zeros(3, size(Psi,2));
     zeros(size(Psi,1),3), zeros(size(Psi,1),3), Psi];
 Mhat = buildGlobalM(MR, L, H);
-Khat = buildGlobalK(KR,Psi);
-Chat = buildGlobalC(CR,Psi);
+Khat = buildGlobalK(KR, Psi);
+Chat = buildGlobalC(CR, Psi);
 
 % [PSI,Lambda] = eigs(Psi.'*K*Psi,Psi.'*M*Psi,10,'smallestabs');
 % f = diag(Lambda)

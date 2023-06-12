@@ -12,7 +12,7 @@ dz   = zeros(size(Nodes,1),length(t(1:step:end)));
 idx  = 1:step:length(t);
 k  = 1;
 for i=idx
-    [A,G] = TransformMat(c(4:6,i));
+    [A,~] = TransformMat(c(4:6,i));
     A_Cell = repmat({A},1,length(xbar)/3);
     Abd = blkdiag(A_Cell{:});
     cfR = Abd*(Psi*c(7:end,i));
@@ -30,7 +30,9 @@ end
 
 figure(5)
 hold on
-plot(t(1:step:end),y(50,:),'displayname','Reduced - 20 Dyn. Mode')
+plot(t(1:step:end),x(50,:),'displayname','x - Reduced - 20 Dyn. Mode')
+plot(t(1:step:end),y(50,:),'displayname','y - Reduced - 20 Dyn. Mode')
+plot(t(1:step:end),z(50,:),'displayname','z - Reduced - 20 Dyn. Mode')
 legend()
 
 dlmwrite('NDt.txt',t(1:step:end))

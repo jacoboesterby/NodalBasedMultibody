@@ -1,6 +1,6 @@
 function writeTimeSeriesFull(Nodes,xbar,c,t,B)
 %Recreate nodal positions
-step = 2;
+step = 5;
 x = zeros(size(Nodes,1),length(t(1:step:end)));
 y = zeros(size(Nodes,1),length(t(1:step:end)));
 z = zeros(size(Nodes,1),length(t(1:step:end)));
@@ -29,7 +29,9 @@ end
 
 figure(5)
 hold on
-plot(t(1:step:end),y(50,:),'-','displayname','Full','linewidth',2)
+plot(t(1:step:end),x(50,:),'-','displayname','x - Full','linewidth',2)
+plot(t(1:step:end),y(50,:),'-','displayname','y - Full','linewidth',2)
+plot(t(1:step:end),z(50,:),'-','displayname','z - Full','linewidth',2)
 legend()
 
 dlmwrite('NDt.txt',t(1:step:end))

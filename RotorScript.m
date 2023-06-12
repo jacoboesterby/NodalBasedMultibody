@@ -61,9 +61,9 @@ B = B(:,setdiff(alldofs,RCdofs));
 
 
 %Newmark integration scheme
-tend = 2.0;
-nstep = 2000;
-h     =tend/(nstep+1);% 1e-4;
+tend = 3.0;
+nstep = 3000;
+h     = tend/(nstep);% 1e-4;
 gamma = 1/2;
 beta  = 1/4;
 
@@ -79,7 +79,7 @@ cf   = zeros(size(K,1),nstep);
 r0           = [0,0,0].';
 % p0           = [cos(0),0,0,sin(0)].'; %Euler parameters
 phi0         = [0,0,0].';
-omega_bar0   = [0,0,10].';
+omega_bar0   = [0,0,0].';
 %Convert angulat velocity to bryant angle derivatives
 phi_dot0     = omega2phi_dot(phi0)*omega_bar0;
 rd0          = [0,0,0].'; %No initial velocity
@@ -89,7 +89,7 @@ c(:,1)       = [r0;phi0;B.'*cf0];
 cd(:,1) = [rd0;phi_dot0;B.'*cf_dot0];
 
 %Proportional damping
-C = (1e-4.*M  + 1e-4.*K).*0;
+C = (1e-4.*M  + 1e-4.*K).*1;
 
 
 % Apply gravitational pull
@@ -109,7 +109,7 @@ F = Fgrav;
 
 %Calculate initial acceleration
 cdd(:,1) = Mhat\(Qv+Qa - Chat*cd(:,1)-Khat*c(:,1));
-k1 = 5e6;
+k1 = 1e4;
 k2 = 5e6;
 
 [Amat,Gmat] = TransformMat(c(4:6,1));
@@ -128,7 +128,7 @@ t = zeros(nstep+1,1);
 
 disp('Starting integration ...')
 prog = 0;
-errTol = 1e-5;
+errTol = 1e-6;
 eps = 1e-6;
 for i=1:nstep
     t(i+1) = i*h;
